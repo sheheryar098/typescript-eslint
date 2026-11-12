@@ -225,6 +225,51 @@ export default createRule<Options, MessageIds>({
       return displayParts ? ts.displayPartsToString(displayParts) : '';
     }
 
+    /**
+     * `symbol.getJsDocTags` unions tags from every declaration, so a single
+     * deprecated overload looks like the whole symbol is deprecated. TypeScript
+     * only strikethroughs a function/method identifier at non-call sites when
+     * every function-like declaration is deprecated.
+     */
+    function hasNonDeprecatedFunctionLikeDeclaration(
+      symbol: ts.Symbol,
+    ): boolean {
+      const visitedSymbols = new Set<ts.Symbol>();
+      while (
+        tsutils.isSymbolFlagSet(symbol, ts.SymbolFlags.Alias) &&
+        !visitedSymbols.has(symbol)
+      ) {
+        visitedSymbols.add(symbol);
+        if (getJsDocDeprecation(symbol) != null) {
+          return false;
+        }
+
+        const immediateAliasedSymbol: ts.Symbol | undefined =
+          symbol.getDeclarations() && checker.getImmediateAliasedSymbol(symbol);
+        if (!immediateAliasedSymbol) {
+          break;
+        }
+        symbol = immediateAliasedSymbol;
+      }
+
+      if (
+        !tsutils.isSymbolFlagSet(symbol, ts.SymbolFlags.Function) &&
+        !tsutils.isSymbolFlagSet(symbol, ts.SymbolFlags.Method)
+      ) {
+        return false;
+      }
+
+      return (
+        symbol
+          .getDeclarations()
+          ?.some(
+            declaration =>
+              ts.isFunctionLike(declaration) &&
+              ts.getJSDocDeprecatedTag(declaration) == null,
+          ) ?? false
+      );
+    }
+
     type CallLikeNode =
       | TSESTree.CallExpression
       | TSESTree.JSXOpeningElement
@@ -374,10 +419,17 @@ export default createRule<Options, MessageIds>({
         );
       }
 
-      return searchForDeprecationInAliasesChain(
-        services.getSymbolAtLocation(node),
-        true,
-      );
+      const symbol = services.getSymbolAtLocation(node);
+      const reason = searchForDeprecationInAliasesChain(symbol, true);
+      if (reason == null) {
+        return undefined;
+      }
+
+      if (symbol != null && hasNonDeprecatedFunctionLikeDeclaration(symbol)) {
+        return undefined;
+      }
+
+      return reason;
     }
 
     function checkIdentifier(node: IdentifierLike): void {

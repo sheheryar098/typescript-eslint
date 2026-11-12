@@ -807,6 +807,88 @@ class Foo implements Foo {
 }
 new Foo().value;
     `,
+    // https://github.com/typescript-eslint/typescript-eslint/issues/10215
+    `
+declare function f(a: number): void;
+/** @deprecated */
+declare function f(): void;
+declare namespace f {
+  export function g(): number;
+}
+
+f.g();
+    `,
+    `
+function f(a: number): void;
+/** @deprecated */
+function f(): void;
+function f(a?: number) {}
+
+f;
+f.prop = () => {};
+f.prop();
+    `,
+    `
+declare function f(a: number): void;
+/** @deprecated */
+declare function f(): void;
+declare namespace f {
+  export function g(): number;
+}
+
+f(1);
+    `,
+    `
+declare function f(): void;
+/** @deprecated */
+namespace f {
+  export const g = '';
+}
+
+f.g;
+    `,
+    `
+/** @deprecated */
+namespace f {
+  export const g = '';
+}
+declare function f(): void;
+
+f.g;
+    `,
+    `
+/** @deprecated */
+function a(): void;
+function a() {}
+
+a.name;
+    `,
+    `
+class A {
+  a(value: 'b'): void;
+  /** @deprecated */
+  a(value: 'c'): void;
+  a(value: string) {}
+}
+declare const foo: A;
+
+foo.a;
+    `,
+    `
+declare const f: {
+  (a: number): void;
+  g(): number;
+  /** @deprecated */
+  (): void;
+};
+
+f.g();
+    `,
+    `
+import { deprecatedFunctionWithOverloads } from './deprecated';
+
+const foo = deprecatedFunctionWithOverloads;
+    `,
   ],
   invalid: [
     {
@@ -2442,6 +2524,198 @@ a('');
           endColumn: 2,
           endLine: 7,
           line: 7,
+          messageId: 'deprecated',
+        },
+      ],
+    },
+    {
+      code: `
+declare function f(a: number): void;
+/** @deprecated */
+declare function f(): void;
+declare namespace f {
+  export function g(): number;
+}
+
+f();
+      `,
+      errors: [
+        {
+          column: 1,
+          data: { name: 'f' },
+          endColumn: 2,
+          endLine: 9,
+          line: 9,
+          messageId: 'deprecated',
+        },
+      ],
+    },
+    {
+      code: `
+function f(a: number): void;
+/** @deprecated */
+function f(): void;
+function f(a?: number) {}
+
+f();
+      `,
+      errors: [
+        {
+          column: 1,
+          data: { name: 'f' },
+          endColumn: 2,
+          endLine: 7,
+          line: 7,
+          messageId: 'deprecated',
+        },
+      ],
+    },
+    {
+      code: `
+/** @deprecated */
+declare function f(): void;
+
+f.name;
+      `,
+      errors: [
+        {
+          column: 1,
+          data: { name: 'f' },
+          endColumn: 2,
+          endLine: 5,
+          line: 5,
+          messageId: 'deprecated',
+        },
+      ],
+    },
+    {
+      code: `
+/** @deprecated */
+declare function f(): void;
+namespace f {
+  export const g = '';
+}
+
+f.g;
+      `,
+      errors: [
+        {
+          column: 1,
+          data: { name: 'f' },
+          endColumn: 2,
+          endLine: 8,
+          line: 8,
+          messageId: 'deprecated',
+        },
+      ],
+    },
+    {
+      code: `
+/** @deprecated */
+function Foo(x: string) {
+  return x;
+}
+namespace Foo {
+  export function bar() {
+    return 'bar';
+  }
+}
+
+Foo.bar();
+      `,
+      errors: [
+        {
+          column: 1,
+          data: { name: 'Foo' },
+          endColumn: 4,
+          endLine: 12,
+          line: 12,
+          messageId: 'deprecated',
+        },
+      ],
+    },
+    {
+      code: `
+/** @deprecated */
+namespace A {
+  export const b = 1;
+}
+namespace A {
+  export const c = 1;
+}
+
+A.b;
+      `,
+      errors: [
+        {
+          column: 1,
+          data: { name: 'A' },
+          endColumn: 2,
+          endLine: 10,
+          line: 10,
+          messageId: 'deprecated',
+        },
+      ],
+    },
+    {
+      code: `
+/** @deprecated */
+function a() {}
+
+a.name;
+      `,
+      errors: [
+        {
+          column: 1,
+          data: { name: 'a' },
+          endColumn: 2,
+          endLine: 5,
+          line: 5,
+          messageId: 'deprecated',
+        },
+      ],
+    },
+    {
+      code: `
+class A {
+  a(value: 'b'): void;
+  /** @deprecated */
+  a(value: 'c'): void;
+  a(value: string) {}
+}
+declare const foo: A;
+
+foo.a('c');
+      `,
+      errors: [
+        {
+          column: 5,
+          data: { name: 'a' },
+          endColumn: 6,
+          endLine: 10,
+          line: 10,
+          messageId: 'deprecated',
+        },
+      ],
+    },
+    {
+      code: `
+declare const f: {
+  (a: number): void;
+  g(): number;
+  /** @deprecated */
+  (): void;
+};
+
+f();
+      `,
+      errors: [
+        {
+          column: 1,
+          data: { name: 'f' },
+          endColumn: 2,
+          endLine: 9,
+          line: 9,
           messageId: 'deprecated',
         },
       ],
